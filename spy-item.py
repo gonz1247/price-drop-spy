@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 
-def find_tag(SCRAPE_URL, current_price):
+def get_tag_lookup_logic(SCRAPE_URL, current_price):
     
     # Verify that URL is valid before attemping to scrape it
     html = requests.get(SCRAPE_URL)
@@ -37,9 +37,46 @@ def find_tag(SCRAPE_URL, current_price):
         # Let user know if you were able to verify the price or not
         if current_price == verified_price:
             print('yay, was able to verify price')
-            return 
+            return (tag.name, tag.attrs)
     # If for loop is exited then did none of the options worked for verifying the price
     print('sorry, was not able to verify item price')
+
+class SpyItem:
+
+    def __init__(self, SCRAPE_URL, lookup_logic, target_price, item_name='wishlist item'):
+        self.url = SCRAPE_URL
+        self.logic = lookup_logic
+        self.target_price = target_price
+        self.item_name = item_name
+
+    def check_current_price(self):
+        # Verify that URL is still valid before attemping to scrape it
+        html = requests.get(self.url)
+        if html.ok:
+            soup = BeautifulSoup(html.text, 'lxml', multi_valued_attributes=None)
+        else:
+            raise ValueError(f'{self.url} no longer exists. This item may not longer be sold.')
+        tag = soup.find(self.logic[0],**self.logic[1])
+        price = list()
+        for char in tag.text:
+            # only grab numbers and decimals from tag text (will strip out any extra decimals that may be leading or trailing the price)
+            if char.isnumeric() or char == '.':
+                price.append(char)
+        current_price = ''.join(price).strip('.')
+        return float(current_price)
+    
+    def check_price_is_right(self):
+        if self.target_price <= self.check_current_price():
+            return True
+        else:
+            return False
+        
+    def update_target_price(self, target_price):
+        self.target_price = target_price
+    
+    def update_item_name(self, item_name):
+        self.item_name = item_name
+    
 
 if __name__ == '__main__':
 
@@ -51,4 +88,10 @@ if __name__ == '__main__':
     # Get item current price to develop scraping approach 
     current_price = '58.97'
 
-    find_tag(SCRAPE_URL,current_price)
+    lookup_logic = get_tag_lookup_logic(SCRAPE_URL,current_price)
+
+    item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'my wishlist item')
+
+    print(item.check_current_price())
+
+    print(item.check_price_is_right())
