@@ -62,17 +62,38 @@ class MainProgam():
                 while not active_patron:
                     print('Please enter the email associated with your account')
                     patron_email = input('> ').strip()
+                    res = self.db_cur.execute("SELECT name, email, rowid FROM patrons WHERE email=?", (patron_email,))
+                    account_info = res.fetchone()
+                    if account_info:
+                        patron = Patron(*account_info)
+                        active_patron = patron
+                        print(f'Welcome back {active_patron.name}, successfully logged in')  
+                    else:
+                        print(f'There is no patron account associated with {patron_email}')
+                        print('Would you like to try a different email or return to the log in menu?')
+                        print('1) Different Email')
+                        print('2) Log In Menu')
+                        selection = input('> ').strip()
+                        if selection == '2':
+                            break
             elif selection == '2':
                 print('Please enter your name')
                 patron_name = input('> ').strip()
                 while not active_patron:
                     print('Please enter your email')
                     patron_email = input('> ').strip()
-                    try:
-                        patron = Patron(patron_name, patron_email)
-                        active_patron = patron
-                        print(f'Welcome {active_patron.name}, successfully created account with email {active_patron.email}')
-                    except ValueError:
+                    if '@' in patron_email:
+                        # check to see if email is already asssociated with anther patron account 
+                        res = self.db_cur.execute("SELECT email FROM patrons WHERE email=?", (patron_email,))
+                        if not res.fetchone():
+                            self.db_cur.execute("INSERT INTO patrons VALUES (?, ?)", (patron_name, patron_email))
+                            self.db_con.commit()
+                            patron = Patron(patron_name, patron_email, self.db_cur.lastrowid)
+                            active_patron = patron
+                            print(f'Welcome {active_patron.name}, successfully created account with email {active_patron.email}')  
+                        else:
+                            print(f'Already a patron account associated with {patron_email}')
+                    else:
                         print('Invalid email, please try again')
             elif selection == '3':
                 stop_ui = True

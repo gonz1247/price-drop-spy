@@ -9,9 +9,10 @@ class Patron:
     spy_items = list()
     _spy_items_urls = set()
 
-    def __init__(self, name, email):
+    def __init__(self, name, email, db_id):
         self.update_name(name)
         self.update_email(email)
+        self.id = db_id
         
     def update_name(self, name):
         if isinstance(name, str):
