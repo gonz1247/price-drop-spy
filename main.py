@@ -1,7 +1,10 @@
 from patron import Patron
+from spy_item import SpyItem
 import os, sqlite3
 
 class MainProgam():
+
+    active_patron = None
 
     def __init__(self, db_name):
         if os.path.exists(db_name):
@@ -14,11 +17,10 @@ class MainProgam():
             self.db_cur = self.db_con.cursor()
             # Set up tables 
             self.db_cur.execute('CREATE TABLE patrons(name TEXT, email TEXT UNIQUE)') # adding unique on email may be overbearing and could be accomplished elsewhere
-            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, url TEXT, tag_type TEXT, logic_id INTEGER, target_price REAL)')
+            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, url TEXT, tag_type TEXT, target_price REAL)')
             # Need a third table to save the dictionary that stores the logic for scraping a website for a price change
             self.db_cur.execute('CREATE TABLE logic(item_id INTEGER, key TEXT, value TEXT)')
             self.db_con.commit()
-
 
     def start_program(self):
         self.main_menu()
@@ -48,38 +50,39 @@ class MainProgam():
         pass
 
     def run_ui(self):
-        active_patron = None
         stop_ui = False
         # Sign in or create an account
-        while not active_patron and not stop_ui:
+        while not self.active_patron and not stop_ui:
             print('\nLog In Menu: Select what you\'d like to do')
             print('-----------------------------')
             print('1) Sign In')
             print('2) Create Account')
             print('3) Exit To Program Main Menu')
-            selection = input('> ').strip()
+            selection = self.user_input()
+            # Sign Into Existing Account
             if selection == '1':
-                while not active_patron:
+                while not self.active_patron:
                     print('Please enter the email associated with your account')
                     patron_email = input('> ').strip()
                     res = self.db_cur.execute("SELECT name, email, rowid FROM patrons WHERE email=?", (patron_email,))
                     account_info = res.fetchone()
                     if account_info:
                         patron = Patron(*account_info)
-                        active_patron = patron
-                        print(f'Welcome back {active_patron.name}, successfully logged in')  
+                        self.active_patron = patron
+                        print(f'Welcome back {self.active_patron.name}, successfully logged in')  
                     else:
                         print(f'There is no patron account associated with {patron_email}')
                         print('Would you like to try a different email or return to the log in menu?')
                         print('1) Different Email')
                         print('2) Log In Menu')
-                        selection = input('> ').strip()
+                        selection = self.user_input()
                         if selection == '2':
                             break
+            # Create A New Account 
             elif selection == '2':
                 print('Please enter your name')
                 patron_name = input('> ').strip()
-                while not active_patron:
+                while not self.active_patron:
                     print('Please enter your email')
                     patron_email = input('> ').strip()
                     if '@' in patron_email:
@@ -89,8 +92,8 @@ class MainProgam():
                             self.db_cur.execute("INSERT INTO patrons VALUES (?, ?)", (patron_name, patron_email))
                             self.db_con.commit()
                             patron = Patron(patron_name, patron_email, self.db_cur.lastrowid)
-                            active_patron = patron
-                            print(f'Welcome {active_patron.name}, successfully created account with email {active_patron.email}')  
+                            self.active_patron = patron
+                            print(f'Welcome {self.active_patron.name}, successfully created account with email {self.active_patron.email}')  
                         else:
                             print(f'Already a patron account associated with {patron_email}')
                     else:
@@ -108,13 +111,44 @@ class MainProgam():
             print('3) Update Target Price Of Items')
             print('4) Update Account Info')
             print('5) Exit To Program Main Menu')
-            selection = input(f'{active_patron.name} > ').strip()
-            if selection == '5':
+            selection = self.user_input()
+            if selection == '1':
+                print('Enter URL for item that you want to spy on')
+                url = self.user_input()
+                if SpyItem.valid_url(url):
+                    print('Enter Name Of Item (This Is What You Refer To The Item As)')
+                    item_name = self.user_input()
+                    print('Enter Current Price Of The Item')
+                    current_price = self.user_input()
+                    print('Enter Maximum Price That You Want To Pay')
+                    target_price = self.user_input()
+                    lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
+                    if lookup_logic:
+                        # patron_id INTEGER, url TEXT, tag_type TEXT, target_price REAL
+                        self.db_cur.execute("INSERT INTO items VALUES (?, ?, ?, ?)", (self.active_patron.id, url, lookup_logic[0], float(target_price)))
+                        # item_id INTEGER, key TEXT, value TEXT
+                        logic_entries = [(self.db_cur.lastrowid, attr, value) for attr, value in lookup_logic[1].items()]
+                        self.db_cur.executemany("INSERT INTO logic VALUES (?, ?, ?)", logic_entries)
+                        self.db_con.commit()
+                        print(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
+                    else:
+                        print('Current Web Scraping Logic Was Not Able To Reliably Scrape URL For The Item Price')
+                        print('Returning To Patron Menu')
+                else:
+                    print('URL Is Not Valid, Returning To Patron Menu')
+            elif selection == '5':
                 stop_ui = True
         # Exit User Interface
+        self.active_patron = None
         print('Exiting User Interface and Returning To Program Main Menu')
 
-    
+    def user_input(self):
+        # this is only used in UI part of program
+        if self.active_patron:
+            selection = input(f'{self.active_patron.name} > ').strip()
+        else:
+            selection = input('> ').strip()
+        return selection   
 
 def main():
     price_drop_spy = MainProgam('db.sqlite3')
