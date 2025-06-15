@@ -1,6 +1,24 @@
 from patron import Patron
+import os, sqlite3
 
 class MainProgam():
+
+    def __init__(self, db_name):
+        if os.path.exists(db_name):
+            # database already exist so just set up connection and cursor
+            self.db_con = sqlite3.connect(db_name)
+            self.db_cur = self.db_con.cursor()
+        else:
+            # database does not exist yet so need to set up tables in addition to connection and cursor
+            self.db_con = sqlite3.connect(db_name)
+            self.db_cur = self.db_con.cursor()
+            # Set up tables 
+            self.db_cur.execute('CREATE TABLE patrons(name TEXT, email TEXT UNIQUE)') # adding unique on email may be overbearing and could be accomplished elsewhere
+            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, url TEXT, tag_type TEXT, logic_id INTEGER, target_price REAL)')
+            # Need a third table to save the dictionary that stores the logic for scraping a website for a price change
+            self.db_cur.execute('CREATE TABLE logic(item_id INTEGER, key TEXT, value TEXT)')
+            self.db_con.commit()
+
 
     def start_program(self):
         self.main_menu()
@@ -78,7 +96,7 @@ class MainProgam():
     
 
 def main():
-    price_drop_spy = MainProgam()
+    price_drop_spy = MainProgam('db.sqlite3')
     price_drop_spy.start_program()
 
 if __name__=='__main__':
