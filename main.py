@@ -64,6 +64,7 @@ class MainProgam():
                 while not self.active_patron:
                     print('Please enter the email associated with your account')
                     patron_email = input('> ').strip()
+                    if not patron_email: break # empty input returns to previous menu
                     res = self.db_cur.execute("SELECT name, email, rowid FROM patrons WHERE email=?", (patron_email,))
                     account_info = res.fetchone()
                     if account_info:
@@ -82,6 +83,7 @@ class MainProgam():
             elif selection == '2':
                 print('Please enter your name')
                 patron_name = input('> ').strip()
+                if not patron_name: continue # empty input returns to previous menu
                 while not self.active_patron:
                     print('Please enter your email')
                     patron_email = input('> ').strip()
@@ -112,9 +114,11 @@ class MainProgam():
             print('4) Update Account Info')
             print('5) Exit To Program Main Menu')
             selection = self.user_input()
+            # Add Item To Patron Account To Spy On
             if selection == '1':
                 print('Enter URL for item that you want to spy on')
                 url = self.user_input()
+                if not url: continue # empty input returns to previous menu
                 if SpyItem.valid_url(url):
                     print('Enter Name Of Item (This Is What You Refer To The Item As)')
                     item_name = self.user_input()
