@@ -11,7 +11,7 @@ class SpyItem:
 
     def check_current_price(self):
         # Verify that URL is still valid before attemping to scrape it
-        if SpyItem.valid_url(SCRAPE_URL):
+        if SpyItem.valid_url(self.url):
             soup = BeautifulSoup(requests.get(self.url).text, 'lxml', multi_valued_attributes=None)
         else:
             raise ValueError(f'{self.url} no longer exists. This item may not longer be sold.')
@@ -25,7 +25,7 @@ class SpyItem:
         return float(current_price)
     
     def check_price_is_right(self):
-        if self.target_price <= self.check_current_price():
+        if self.check_current_price() <= self.target_price:
             return True
         else:
             return False
@@ -92,18 +92,12 @@ class SpyItem:
 
 if __name__ == '__main__':
 
-    # Get URL to scrape
-    SCRAPE_URL = 'https://shop.lululemon.com/p/men-ss-tops/Organic-Cotton-Classic-Fit-T-Shirt/_/prod11680617?color=0002'
-    #SCRAPE_URL = 'https://skims.com/products/sheer-cotton-t-shirt-blue-bell'
+    # Get Info For Web Scraping
     SCRAPE_URL = 'https://www.nike.com/t/killshot-2-leather-mens-shoes-1lEPvIbm/HM9431-001?nikemt=true&cp=54011862001_search_--g-21728772664-171403009167--c-1015651687-00197859044818&dplnk=member&gad_source=1&gad_campaignid=21728772664&gbraid=0AAAAADy86kOsh9txv0At5foYSBh1PKgh2&gclid=Cj0KCQjwmK_CBhCEARIsAMKwcD42_Q8_DvZjKSqoRPxGsbbizPOGjqJxcmOwd3WzISxWOaBes6b6OMQaAnWxEALw_wcB&gclsrc=aw.ds'
-
-    # Get item current price to develop scraping approach 
     current_price = '58.97'
 
-    #lookup_logic = get_tag_lookup_logic(SCRAPE_URL,current_price)
-
-    item = SpyItem(SCRAPE_URL, '58.97', 40, 'my wishlist item')
-
-    print(item.check_current_price())
-
-    print(item.check_price_is_right())
+    if SpyItem.valid_url(SCRAPE_URL):
+        lookup_logic = SpyItem.get_tag_lookup_logic(SCRAPE_URL,current_price)
+        item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Nike Shoes')
+        print(item.check_current_price())
+        print(item.check_price_is_right())

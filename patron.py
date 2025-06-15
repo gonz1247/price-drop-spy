@@ -2,17 +2,16 @@ from spy_item import SpyItem
 from smtplib import SMTP
 from dotenv import dotenv_values
 from email.message import EmailMessage
+import sqlite3
 
 
 class Patron:
 
-    spy_items = list()
-    _spy_items_urls = set()
-
-    def __init__(self, name, email, db_id):
+    def __init__(self, name, email, db_id, db_name):
         self.update_name(name)
         self.update_email(email)
         self.id = db_id
+        self.db_name = db_name
         
     def update_name(self, name):
         if isinstance(name, str):
@@ -29,13 +28,24 @@ class Patron:
         else:
             raise TypeError('Patron email must be entered as a string') 
         
-    def add_spy_item(self, spy_item):
-        if isinstance(spy_item, SpyItem):
-            if spy_item.url not in self._spy_items_urls:
-                self.spy_items.append(spy_item)
-                self._spy_items_urls.add(spy_item.url)
-            else:
-                raise ValueError('This Item Is Already Being Spied On')
+    def display_items(self, show_target=False):
+        con = sqlite3.connect(self.db_name)
+        cur = con.cursor()
+        # Grab all items associated with the patron
+        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
+        res = cur.execute("SELECT rowid, name, url, tag_type, target_price FROM items WHERE patron_id=?", (self.id,))
+        for idx, item in enumerate(res.fetchall()):
+            # Recreate a dictionary for use as the lookup logic when webscraping
+            # item_id INTEGER, key TEXT, value TEXT
+            [item_id, item_name, url, tag_type, target_price] = item
+            res = cur.execute("SELECT key, value FROM logic WHERE item_id=?", (item_id,))
+            tag_attrs = {logic[0]:logic[1] for logic in res.fetchall()}
+            lookup_logic = (tag_type, tag_attrs)
+            spy_item = SpyItem(url, lookup_logic, target_price, item_name)
+            display_text = f'{idx+1}) {spy_item.item_name} is currently ${spy_item.check_current_price():.2f}'
+            if show_target: 
+                display_text += f', target price is ${spy_item.target_price:.2f}'
+            print(display_text)
     
     def notify_of_price_drop(self, spy_item):
         with SMTP('smtp.gmail.com', 587) as s:
@@ -47,7 +57,7 @@ class Patron:
             email['Subject'] = f'Hey {self.name}! Your Spied On Item Has Hit The Price You Were Interested In!'
             email['From'] = 'Price Drop Spy <noreply@pricedrop.spy>' # gmail doesn't allow for alternative email to be displayed so noreply@pricedrop.spy will be overwritten
             email['To'] = self.email
-            message = f'{spy_item.item_name} is currently available for ${spy_item.check_current_price()}\n\n'
+            message = f'{spy_item.item_name} is currently available for ${spy_item.check_current_price():.2f}\n\n'
             message += f'Purchase your item at: {spy_item.url}'
             email.set_content(message)
             # Send email notification
@@ -55,12 +65,12 @@ class Patron:
 
 if __name__ == '__main__':
     # Set Up Item 
-    SCRAPE_URL = 'https://www.nike.com/t/killshot-2-leather-mens-shoes-1lEPvIbm/HM9431-001?nikemt=true&cp=54011862001_search_--g-21728772664-171403009167--c-1015651687-00197859044818&dplnk=member&gad_source=1&gad_campaignid=21728772664&gbraid=0AAAAADy86kOsh9txv0At5foYSBh1PKgh2&gclid=Cj0KCQjwmK_CBhCEARIsAMKwcD42_Q8_DvZjKSqoRPxGsbbizPOGjqJxcmOwd3WzISxWOaBes6b6OMQaAnWxEALw_wcB&gclsrc=aw.ds'
-    current_price = '58.97'
-    from spy_item import get_tag_lookup_logic
-    lookup_logic = get_tag_lookup_logic(SCRAPE_URL,current_price)
-    item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Nike Shoes')
-    p = Patron('Gonzo', dotenv_values('.env')['admin_email'])
-    p.notify_of_price_drop(item)
+    SCRAPE_URL = 'https://shop.lululemon.com/p/men-ss-tops/Organic-Cotton-Classic-Fit-T-Shirt/_/prod11680617?color=0002'
+    current_price = '58'
+    if SpyItem.valid_url(SCRAPE_URL):
+        lookup_logic = SpyItem.get_tag_lookup_logic(SCRAPE_URL,current_price)
+        item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Lulu Shirt')
+        p = Patron('Gonzo', dotenv_values('.env')['admin_email'], db_id=-1, db_name='dummy')
+        p.notify_of_price_drop(item)
         
     

@@ -9,21 +9,27 @@ class MainProgam():
     def __init__(self, db_name):
         if os.path.exists(db_name):
             # database already exist so just set up connection and cursor
+            self.db_name = db_name
             self.db_con = sqlite3.connect(db_name)
             self.db_cur = self.db_con.cursor()
         else:
             # database does not exist yet so need to set up tables in addition to connection and cursor
+            self.db_name = db_name
             self.db_con = sqlite3.connect(db_name)
             self.db_cur = self.db_con.cursor()
             # Set up tables 
             self.db_cur.execute('CREATE TABLE patrons(name TEXT, email TEXT UNIQUE)') # adding unique on email may be overbearing and could be accomplished elsewhere
-            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, url TEXT, tag_type TEXT, target_price REAL)')
+            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL)')
             # Need a third table to save the dictionary that stores the logic for scraping a website for a price change
             self.db_cur.execute('CREATE TABLE logic(item_id INTEGER, key TEXT, value TEXT)')
             self.db_con.commit()
 
     def start_program(self):
         self.main_menu()
+        self.end_program()
+
+    def end_program(self):
+        self.db_con.close()
 
     def main_menu(self):
         print('Welcome The Price Drop Spy Program')
@@ -53,7 +59,7 @@ class MainProgam():
         stop_ui = False
         # Sign in or create an account
         while not self.active_patron and not stop_ui:
-            print('\nLog In Menu: Select what you\'d like to do')
+            print('\nLogin Menu: Select what you\'d like to do')
             print('-----------------------------')
             print('1) Sign In')
             print('2) Create Account')
@@ -68,14 +74,14 @@ class MainProgam():
                     res = self.db_cur.execute("SELECT name, email, rowid FROM patrons WHERE email=?", (patron_email,))
                     account_info = res.fetchone()
                     if account_info:
-                        patron = Patron(*account_info)
+                        patron = Patron(*account_info, self.db_name)
                         self.active_patron = patron
                         print(f'Welcome back {self.active_patron.name}, successfully logged in')  
                     else:
                         print(f'There is no patron account associated with {patron_email}')
-                        print('Would you like to try a different email or return to the log in menu?')
+                        print('Would you like to try a different email or return to the login menu?')
                         print('1) Different Email')
-                        print('2) Log In Menu')
+                        print('2) Login Menu')
                         selection = self.user_input()
                         if selection == '2':
                             break
@@ -93,11 +99,12 @@ class MainProgam():
                         if not res.fetchone():
                             self.db_cur.execute("INSERT INTO patrons VALUES (?, ?)", (patron_name, patron_email))
                             self.db_con.commit()
-                            patron = Patron(patron_name, patron_email, self.db_cur.lastrowid)
+                            patron = Patron(patron_name, patron_email, self.db_cur.lastrowid, self.db_name)
                             self.active_patron = patron
                             print(f'Welcome {self.active_patron.name}, successfully created account with email {self.active_patron.email}')  
                         else:
                             print(f'Already a patron account associated with {patron_email}')
+                            print('Returning To Login Menu')
                     else:
                         print('Invalid email, please try again')
             elif selection == '3':
@@ -128,8 +135,8 @@ class MainProgam():
                     target_price = self.user_input()
                     lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
                     if lookup_logic:
-                        # patron_id INTEGER, url TEXT, tag_type TEXT, target_price REAL
-                        self.db_cur.execute("INSERT INTO items VALUES (?, ?, ?, ?)", (self.active_patron.id, url, lookup_logic[0], float(target_price)))
+                        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
+                        self.db_cur.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?)", (self.active_patron.id, item_name, url, lookup_logic[0], float(target_price)))
                         # item_id INTEGER, key TEXT, value TEXT
                         logic_entries = [(self.db_cur.lastrowid, attr, value) for attr, value in lookup_logic[1].items()]
                         self.db_cur.executemany("INSERT INTO logic VALUES (?, ?, ?)", logic_entries)
@@ -140,6 +147,12 @@ class MainProgam():
                         print('Returning To Patron Menu')
                 else:
                     print('URL Is Not Valid, Returning To Patron Menu')
+            # Display Current Items Being Tracked And Their Current Price
+            elif selection == '2':
+                self.active_patron.display_items()
+            # Display Items For Patron To Select To Update Target Price On
+            elif selection == '3':
+                self.active_patron.display_items(show_target=True)
             elif selection == '5':
                 stop_ui = True
         # Exit User Interface
