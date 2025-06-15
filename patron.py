@@ -10,17 +10,17 @@ class Patron:
     _spy_items_urls = set()
 
     def __init__(self, name, email):
-        self.name = name
-        self.email = email
+        self.update_name(name)
+        self.update_email(email)
         
     def update_name(self, name):
-        if isinstance(self.name, str):
+        if isinstance(name, str):
             self.name = name
         else:
             raise TypeError('Patron name must be entered as a string') 
         
     def update_email(self, email):
-        if isinstance(self.email, str):
+        if isinstance(email, str):
             if '@' in email:
                 self.email = email
             else:
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     from spy_item import get_tag_lookup_logic
     lookup_logic = get_tag_lookup_logic(SCRAPE_URL,current_price)
     item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Nike Shoes')
-    p = Patron('Gonzo', 'albooboo1229@gmail.com')
+    p = Patron('Gonzo', dotenv_values('.env')['admin_email'])
     p.notify_of_price_drop(item)
         
     
