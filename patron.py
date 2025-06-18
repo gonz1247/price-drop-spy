@@ -28,13 +28,14 @@ class Patron:
         else:
             raise TypeError('Patron email must be entered as a string') 
         
-    def display_items(self, show_target=False):
+    def grab_items(self):
         con = sqlite3.connect(self.db_name)
         cur = con.cursor()
         # Grab all items associated with the patron
         # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
         res = cur.execute("SELECT rowid, name, url, tag_type, target_price FROM items WHERE patron_id=?", (self.id,))
-        for idx, item in enumerate(res.fetchall()):
+        current_items = list()
+        for item in res.fetchall():
             # Recreate a dictionary for use as the lookup logic when webscraping
             # item_id INTEGER, key TEXT, value TEXT
             [item_id, item_name, url, tag_type, target_price] = item
@@ -42,6 +43,12 @@ class Patron:
             tag_attrs = {logic[0]:logic[1] for logic in res.fetchall()}
             lookup_logic = (tag_type, tag_attrs)
             spy_item = SpyItem(url, lookup_logic, target_price, item_name)
+            current_items.append(spy_item)
+        return current_items
+    
+    def display_items(self, show_target=False):
+        current_items = self.grab_items()
+        for idx, spy_item in enumerate(current_items):
             display_text = f'{idx+1}) {spy_item.item_name} is currently ${spy_item.check_current_price():.2f}'
             if show_target: 
                 display_text += f', target price is ${spy_item.target_price:.2f}'

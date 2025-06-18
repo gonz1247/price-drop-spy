@@ -149,9 +149,13 @@ class MainProgam():
                     print('URL Is Not Valid, Returning To Patron Menu')
             # Display Current Items Being Tracked And Their Current Price
             elif selection == '2':
+                print('Current Price Of Items Being Spied On')
+                print('-------------------------------------')
                 self.active_patron.display_items()
             # Display Items For Patron To Select To Update Target Price On
             elif selection == '3':
+                print('Select Item That You Want To Update Target Price For')
+                print('----------------------------------------------------')
                 self.active_patron.display_items(show_target=True)
             elif selection == '5':
                 stop_ui = True
