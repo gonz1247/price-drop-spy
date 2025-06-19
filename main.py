@@ -71,7 +71,7 @@ class MainProgam():
             if selection == '1':
                 while not self.active_patron:
                     print('Please enter the email associated with your account')
-                    patron_email = input('> ').strip()
+                    patron_email = input('> ').strip().lower()
                     if not patron_email: break # empty input returns to previous menu
                     res = self.db_cur.execute("SELECT name, email, rowid FROM patrons WHERE email=?", (patron_email,))
                     account_info = res.fetchone()
@@ -102,12 +102,13 @@ class MainProgam():
                             self.db_cur.execute("INSERT INTO patrons VALUES (?, ?)", (patron_name, patron_email))
                             self.db_con.commit()
                             patron = Patron(patron_name, patron_email, self.db_cur.lastrowid, self.db_name)
-                            self.active_patron = patron\
-                            # TODO: Add check or at least prompt to verify that email is correct (also do when updating email)
-                            print(f'Welcome {self.active_patron.name}, successfully created account with email {self.active_patron.email}')  
+                            self.active_patron = patron
+                            print(f'Welcome {self.active_patron.name}, successfully created account with email {self.active_patron.email}')
+                            print('Name And Email On Your Account Can Be Updated On The Patron Menu If Needed')
                         else:
                             print(f'Already a patron account associated with {patron_email}')
                             print('Returning To Login Menu')
+                            break
                     else:
                         print('Invalid email, please try again')
             elif selection == '3':
@@ -207,9 +208,12 @@ class MainProgam():
                     new_email = ''
                     print('Input A New Email Address For Your Account')
                     while '@' not in new_email:
-                        new_email = self.user_input()
-                    self.active_patron.update_email(new_email)
-                    print(f'Successfully Updated The Email On Your Account To {new_email}')
+                        new_email = self.user_input().lower()
+                    try:
+                        self.active_patron.update_email(new_email)
+                        print(f'Successfully Updated The Email On Your Account To {new_email}')
+                    except sqlite3.IntegrityError:
+                        print(f'Already a patron account associated with {new_email}')
                 else:
                     print('Invalid Input, Returningh To Patron Menu')
             elif selection == '5':
