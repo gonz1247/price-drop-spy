@@ -8,25 +8,33 @@ import sqlite3
 class Patron:
 
     def __init__(self, name, email, db_id, db_name):
-        self.update_name(name)
-        self.update_email(email)
+        self.name = name
+        self.email = email
         self.id = db_id
         self.db_name = db_name
         
     def update_name(self, name):
-        if isinstance(name, str):
-            self.name = name
-        else:
-            raise TypeError('Patron name must be entered as a string') 
+        # update locally
+        self.name = name
+        # update in database 
+        con = sqlite3.connect(self.db_name)
+        cur = con.cursor()
+        # patrons(name TEXT, email TEXT UNIQUE)
+        cur.execute("UPDATE patrons set name=? WHERE rowid=?", (self.name, self.id))
+        con.commit()
+        con.close()
         
     def update_email(self, email):
-        if isinstance(email, str):
-            if '@' in email:
-                self.email = email
-            else:
-                raise ValueError('Invalid email address')
-        else:
-            raise TypeError('Patron email must be entered as a string') 
+        # update locally
+        self.email = email
+        # update in database 
+        con = sqlite3.connect(self.db_name)
+        cur = con.cursor()
+        # patrons(name TEXT, email TEXT UNIQUE)
+        cur.execute("UPDATE patrons set email=? WHERE rowid=?", (self.email, self.id))
+        con.commit()
+        con.close()
+        
         
     def grab_items(self):
         con = sqlite3.connect(self.db_name)
@@ -78,8 +86,8 @@ if __name__ == '__main__':
     current_price = '58'
     if SpyItem.valid_url(SCRAPE_URL):
         lookup_logic = SpyItem.get_tag_lookup_logic(SCRAPE_URL,current_price)
-        item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Lulu Shirt')
+        item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Lulu Shirt', db_id=-1, db_name='dummy')
         p = Patron('Gonzo', dotenv_values('.env')['admin_email'], db_id=-1, db_name='dummy')
-        p.notify_of_price_drop(item)
+        #p.notify_of_price_drop(item)
         
     

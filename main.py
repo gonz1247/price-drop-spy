@@ -160,6 +160,7 @@ class MainProgam():
                 self.active_patron.display_items(show_target=True, item_list=current_items)
                 print('\nSelect Item That You Want To Update Target Price For')
                 item_selection = self.user_input()
+                if not item_selection: continue # empty input returns to previous menu
                 if item_selection.isnumeric():
                     item_selection = int(item_selection)
                     if item_selection > 0 and item_selection <= len(current_items):
@@ -177,6 +178,32 @@ class MainProgam():
                         print('Invalid Input, Returning To Patron Menu')
                 else:
                     print('Invalid Input, Returning To Patron Menu')
+            # Update User Account Info
+            elif selection == '4':
+                print('Current Account Information')
+                print('----------------------------------------------------')
+                print(f'Name: {self.active_patron.name}')
+                print(f'Email: {self.active_patron.email}')
+                print('Account Update Menu: Select what you\'d like to do')
+                print('----------------------------------------------------')
+                print('1) Update Name')
+                print('2) Update Email')
+                selection = self.user_input()
+                if not selection: continue # empty input returns to previous menu
+                if selection == '1':
+                    print('Input Your Updated Name')
+                    new_name = self.user_input()
+                    self.active_patron.update_name(new_name)
+                    print(f'Successfully Updated Your Name To {new_name}')
+                elif selection == '2':
+                    new_email = ''
+                    print('Input A New Email Address For Your Account')
+                    while '@' not in new_email:
+                        new_email = self.user_input()
+                    self.active_patron.update_email(new_email)
+                    print(f'Successfully Updated The Email On Your Account To {new_email}')
+                else:
+                    print('Invalid Input, Returningh To Patron Menu')
             elif selection == '5':
                 stop_ui = True
         # Exit User Interface

@@ -38,7 +38,6 @@ class SpyItem:
         # update in database 
         con = sqlite3.connect(self.db_name)
         cur = con.cursor()
-        # Grab all items associated with the patron
         # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
         cur.execute("UPDATE items set target_price=? WHERE rowid=?", (self.target_price, self.id))
         con.commit()
