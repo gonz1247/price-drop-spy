@@ -154,9 +154,29 @@ class MainProgam():
                 self.active_patron.display_items()
             # Display Items For Patron To Select To Update Target Price On
             elif selection == '3':
-                print('Select Item That You Want To Update Target Price For')
+                print('Current Items Being Spied On')
                 print('----------------------------------------------------')
-                self.active_patron.display_items(show_target=True)
+                current_items = self.active_patron.grab_items()
+                self.active_patron.display_items(show_target=True, item_list=current_items)
+                print('\nSelect Item That You Want To Update Target Price For')
+                item_selection = self.user_input()
+                if item_selection.isnumeric():
+                    item_selection = int(item_selection)
+                    if item_selection > 0 and item_selection <= len(current_items):
+                        item = current_items[item_selection-1]
+                        print(f'Update Target Price For {item.item_name}')
+                        print('----------------------------------------------------')
+                        print(f'Current Target Price is ${item.target_price}')
+                        print('Input New Target Price')
+                        new_price = '-'
+                        while not new_price.isnumeric():
+                            new_price = self.user_input().strip('$')
+                        item.update_target_price(new_price)
+                        print('Updated Target Price On Item')
+                    else:
+                        print('Invalid Input, Returning To Patron Menu')
+                else:
+                    print('Invalid Input, Returning To Patron Menu')
             elif selection == '5':
                 stop_ui = True
         # Exit User Interface

@@ -42,13 +42,15 @@ class Patron:
             res = cur.execute("SELECT key, value FROM logic WHERE item_id=?", (item_id,))
             tag_attrs = {logic[0]:logic[1] for logic in res.fetchall()}
             lookup_logic = (tag_type, tag_attrs)
-            spy_item = SpyItem(url, lookup_logic, target_price, item_name)
+            spy_item = SpyItem(url, lookup_logic, target_price, item_name, item_id, self.db_name)
             current_items.append(spy_item)
+        con.close()
         return current_items
     
-    def display_items(self, show_target=False):
-        current_items = self.grab_items()
-        for idx, spy_item in enumerate(current_items):
+    def display_items(self, show_target=False, item_list=None):
+        if not item_list:
+            item_list = self.grab_items()
+        for idx, spy_item in enumerate(item_list):
             display_text = f'{idx+1}) {spy_item.item_name} is currently ${spy_item.check_current_price():.2f}'
             if show_target: 
                 display_text += f', target price is ${spy_item.target_price:.2f}'

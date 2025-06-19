@@ -1,13 +1,15 @@
 from bs4 import BeautifulSoup
-import requests
+import requests, sqlite3
 
 class SpyItem:
 
-    def __init__(self, SCRAPE_URL, lookup_logic, target_price, item_name='wishlist item'):
+    def __init__(self, SCRAPE_URL, lookup_logic, target_price, item_name, db_id, db_name):
         self.url = SCRAPE_URL
         self.logic = lookup_logic
         self.target_price = float(target_price)
         self.item_name = item_name
+        self.id = db_id
+        self.db_name = db_name
 
     def check_current_price(self):
         # Verify that URL is still valid before attemping to scrape it
@@ -31,8 +33,17 @@ class SpyItem:
             return False
         
     def update_target_price(self, target_price):
-        self.target_price = target_price
-    
+        # Update in local instance
+        self.target_price = float(target_price)
+        # update in database 
+        con = sqlite3.connect(self.db_name)
+        cur = con.cursor()
+        # Grab all items associated with the patron
+        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
+        cur.execute("UPDATE items set target_price=? WHERE rowid=?", (self.target_price, self.id))
+        con.commit()
+        con.close()
+
     def update_item_name(self, item_name):
         self.item_name = item_name
 
