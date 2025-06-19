@@ -16,8 +16,8 @@ class SpyItem:
         if SpyItem.valid_url(self.url):
             soup = BeautifulSoup(requests.get(self.url).text, 'lxml', multi_valued_attributes=None)
         else:
-            raise ValueError(f'{self.url} no longer exists. This item may not longer be sold.')
-        tag = soup.find(self.logic[0],**self.logic[1])
+            raise ValueError(f'{self.url} no longer exists. This item may no longer be sold.')
+        tag = soup.find_all(self.logic[0],**self.logic[1])[self.logic[2]]
         price = list()
         for char in tag.text:
             # only grab numbers and decimals from tag text (will strip out any extra decimals that may be leading or trailing the price)
@@ -38,7 +38,7 @@ class SpyItem:
         # update in database 
         con = sqlite3.connect(self.db_name)
         cur = con.cursor()
-        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
+        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL
         cur.execute("UPDATE items set target_price=? WHERE rowid=?", (self.target_price, self.id))
         con.commit()
         con.close()
@@ -47,7 +47,6 @@ class SpyItem:
         self.item_name = item_name
 
     @staticmethod
-    # TODO: See if this can be rewritten to be more robust 
     def get_tag_lookup_logic(SCRAPE_URL, current_price):    
         # Verify that URL is valid before attemping to scrape it 
         if SpyItem.valid_url(SCRAPE_URL):
@@ -55,38 +54,41 @@ class SpyItem:
         else:
             # In practice will check if URL is valid prior to calling this method  
             raise ValueError(f'{SCRAPE_URL} is not valid URL')
+         
+        # Strip trailing zeros on price (user may add this even if the website only has the whole dollar shown)
+        if current_price.endswith('.00'):
+            current_price = current_price[0:-3]
 
         # Find tag that is best representation of the price inputted
         tag_options = soup.body.find_all(lambda tag: current_price in tag.text)
         if tag_options:
             tag_shortest_text = tag_options[0]
-            correct_tag_options = list()
             for tag in tag_options:
                 # Assume that the price will be self contained and therefore short
                 # # Want to grab the tag that simply has the price, not one that has a the story of why it's that price
-                if len(tag.text) < len(tag_shortest_text.text):
+                # # If tag has text of same length then likely a child of previos tag identified
+                if len(tag.text) <= len(tag_shortest_text.text):
                     tag_shortest_text = tag
-                    correct_tag_options = [tag]
-                elif len(tag.text) == len(tag_shortest_text.text):
-                    # If tag has text of same length then likely a child of previos tag identified
-                    # # Will check all tag to which one was reliably can get the price  
-                    correct_tag_options.append(tag)
 
-            # Verify that identifed tag(s) actually have the right price/can be used to reliably to get the price
-            for tag in correct_tag_options:
-                correct_tag = soup.find(tag.name,**tag.attrs)
+            # Tag may be used multiple times on page so check which instance of the tag has the info we want
+            correct_tag_options = soup.find_all(tag_shortest_text.name,**tag_shortest_text.attrs)
+            for idx, tag in enumerate(correct_tag_options):
                 price = list()
-                for char in correct_tag.text:
+                for char in tag.text:
                     # only grab numbers and decimals from tag text (will strip out any extra decimals that may be leading or trailing the price)
                     if char.isnumeric() or char == '.':
                         price.append(char)
                 verified_price = ''.join(price).strip('.')
+                # also strip out trailing zeros since current_price strip theirs earlier 
+                if verified_price.endswith('.00'):
+                    verified_price = verified_price[:-3]
                 # Let user know if you were able to verify the price or not
                 if current_price == verified_price:
-                    return (tag.name, tag.attrs)
+                    return (tag.name, tag.attrs, idx)
         # Tag with price was not found or logic created was not reliable enough 
         # raise NotImplementedError('Current Web Scraping Logic Was Not Able To Reliably Scrape URL For The Item Price')
-        return None 
+        # raise ValueError('Inputted Current Price Was Not Found On The Webpage Given')
+        return None
     
     @staticmethod
     def valid_url(SCRAPE_URL):
@@ -104,11 +106,15 @@ class SpyItem:
 if __name__ == '__main__':
 
     # Get Info For Web Scraping
-    SCRAPE_URL = 'https://www.nike.com/t/killshot-2-leather-mens-shoes-1lEPvIbm/HM9431-001?nikemt=true&cp=54011862001_search_--g-21728772664-171403009167--c-1015651687-00197859044818&dplnk=member&gad_source=1&gad_campaignid=21728772664&gbraid=0AAAAADy86kOsh9txv0At5foYSBh1PKgh2&gclid=Cj0KCQjwmK_CBhCEARIsAMKwcD42_Q8_DvZjKSqoRPxGsbbizPOGjqJxcmOwd3WzISxWOaBes6b6OMQaAnWxEALw_wcB&gclsrc=aw.ds'
-    current_price = '58.97'
+    SCRAPE_URL = 'https://www.nintendo.com/us/retail-offers/#switch2-bundle'
+    current_price = '499.99'
+    # SCRAPE_URL = 'https://www.nike.com/t/killshot-2-leather-mens-shoes-1lEPvIbm/432997-070'
+    # current_price = '90.00'
 
     if SpyItem.valid_url(SCRAPE_URL):
         lookup_logic = SpyItem.get_tag_lookup_logic(SCRAPE_URL,current_price)
-        item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Nike Shoes')
+        item = SpyItem(SCRAPE_URL, lookup_logic, 450, 'Switch 2', 'dummy', 'dummy')
         print(item.check_current_price())
         print(item.check_price_is_right())
+    else:
+        print('Was not able to access URL')

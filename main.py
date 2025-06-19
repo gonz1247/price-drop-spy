@@ -20,7 +20,7 @@ class MainProgam():
             self.db_cur = self.db_con.cursor()
             # Set up tables 
             self.db_cur.execute('CREATE TABLE patrons(name TEXT, email TEXT UNIQUE)') # adding unique on email may be overbearing and could be accomplished elsewhere
-            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL)')
+            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL)')
             # Need a third table to save the dictionary that stores the logic for scraping a website for a price change
             self.db_cur.execute('CREATE TABLE logic(item_id INTEGER, key TEXT, value TEXT)')
             self.db_con.commit()
@@ -138,15 +138,16 @@ class MainProgam():
                     target_price = self.user_input().strip('$')
                     lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
                     if lookup_logic:
-                        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
-                        self.db_cur.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?)", (self.active_patron.id, item_name, url, lookup_logic[0], float(target_price)))
+                        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL
+                        self.db_cur.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?)", (self.active_patron.id, item_name, url, lookup_logic[0], lookup_logic[2], float(target_price)))
                         # item_id INTEGER, key TEXT, value TEXT
                         logic_entries = [(self.db_cur.lastrowid, attr, value) for attr, value in lookup_logic[1].items()]
                         self.db_cur.executemany("INSERT INTO logic VALUES (?, ?, ?)", logic_entries)
                         self.db_con.commit()
                         print(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
                     else:
-                        print('Current Web Scraping Logic Was Not Able To Reliably Scrape URL For The Item Price')
+                        print('Inputted Current Price Was Not Found On The Webpage Given')
+                        print(f'Are you sure that the current price of the {item_name} is ${current_price}?')
                         print('Returning To Patron Menu')
                 else:
                     if 'https://' in url:

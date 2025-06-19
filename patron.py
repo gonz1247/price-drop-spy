@@ -40,16 +40,16 @@ class Patron:
         con = sqlite3.connect(self.db_name)
         cur = con.cursor()
         # Grab all items associated with the patron
-        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
-        res = cur.execute("SELECT rowid, name, url, tag_type, target_price FROM items WHERE patron_id=?", (self.id,))
+        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL
+        res = cur.execute("SELECT rowid, name, url, tag_type, tag_idx, target_price FROM items WHERE patron_id=?", (self.id,))
         current_items = list()
         for item in res.fetchall():
             # Recreate a dictionary for use as the lookup logic when webscraping
             # item_id INTEGER, key TEXT, value TEXT
-            [item_id, item_name, url, tag_type, target_price] = item
+            [item_id, item_name, url, tag_type, tag_idx, target_price] = item
             res = cur.execute("SELECT key, value FROM logic WHERE item_id=?", (item_id,))
             tag_attrs = {logic[0]:logic[1] for logic in res.fetchall()}
-            lookup_logic = (tag_type, tag_attrs)
+            lookup_logic = (tag_type, tag_attrs, tag_idx)
             spy_item = SpyItem(url, lookup_logic, target_price, item_name, item_id, self.db_name)
             current_items.append(spy_item)
         con.close()
