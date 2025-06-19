@@ -47,6 +47,7 @@ class SpyItem:
         self.item_name = item_name
 
     @staticmethod
+    # TODO: See if this can be rewritten to be more robust 
     def get_tag_lookup_logic(SCRAPE_URL, current_price):    
         # Verify that URL is valid before attemping to scrape it 
         if SpyItem.valid_url(SCRAPE_URL):

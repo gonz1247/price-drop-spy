@@ -6,6 +6,7 @@ class MainProgam():
 
     active_patron = None
 
+    # TODO: Add coloring to messages and input prompts 
     def __init__(self, db_name):
         if os.path.exists(db_name):
             # database already exist so just set up connection and cursor
@@ -53,6 +54,7 @@ class MainProgam():
                 print('Invalid selection, please try again\n')
 
     def start_spying(self):
+        # TODO: Work on spying functionality. Determine if can search items on behalf of multiples patrons at a time
         pass
 
     def run_ui(self):
@@ -100,7 +102,8 @@ class MainProgam():
                             self.db_cur.execute("INSERT INTO patrons VALUES (?, ?)", (patron_name, patron_email))
                             self.db_con.commit()
                             patron = Patron(patron_name, patron_email, self.db_cur.lastrowid, self.db_name)
-                            self.active_patron = patron
+                            self.active_patron = patron\
+                            # TODO: Add check or at least prompt to verify that email is correct (also do when updating email)
                             print(f'Welcome {self.active_patron.name}, successfully created account with email {self.active_patron.email}')  
                         else:
                             print(f'Already a patron account associated with {patron_email}')
