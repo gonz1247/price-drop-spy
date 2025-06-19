@@ -130,9 +130,9 @@ class MainProgam():
                     print('Enter Name Of Item (This Is What You Refer To The Item As)')
                     item_name = self.user_input()
                     print('Enter Current Price Of The Item')
-                    current_price = self.user_input()
+                    current_price = self.user_input().strip('$')
                     print('Enter Maximum Price That You Want To Pay')
-                    target_price = self.user_input()
+                    target_price = self.user_input().strip('$')
                     lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
                     if lookup_logic:
                         # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, target_price REAL
