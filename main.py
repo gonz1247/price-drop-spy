@@ -146,7 +146,11 @@ class MainProgam():
                         print('Current Web Scraping Logic Was Not Able To Reliably Scrape URL For The Item Price')
                         print('Returning To Patron Menu')
                 else:
-                    print('URL Is Not Valid, Returning To Patron Menu')
+                    if 'https://' in url:
+                        domain_name = url.split('/')[2]
+                        print(f'{domain_name.upper()} Does Not Allow Price Spying On Their Website')
+                    else:
+                        print('Invalid URL, Returning To Patron Menu')
             # Display Current Items Being Tracked And Their Current Price
             elif selection == '2':
                 print('Current Price Of Items Being Spied On')
