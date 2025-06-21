@@ -119,6 +119,7 @@ class MainProgam():
                 error_msg('Invalid selection, please try again\n')
         # Display User Interface Menu
         while not stop_ui:
+            # TODO: Add option to remove items from being spied on (maybe will also use this after items hit targets as to not spam patrons)
             menu_display('\nPatron Menu: Select what you\'d like to do')
             menu_display('-----------------------------')
             menu_display('1) Add Item To Spy On')
@@ -139,22 +140,32 @@ class MainProgam():
                     current_price = self.user_input().strip('$')
                     prompt_msg('Enter Maximum Price That You Want To Pay')
                     target_price = self.user_input().strip('$')
-                    lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
-                    if lookup_logic:      
-                        # spy_urls(url TEXT, tag_type TEXT, tag_idx INTEGER)
-                        self.db_cur.execute("INSERT INTO spy_urls VALUES (?, ?, ?)", (url, lookup_logic[0], lookup_logic[2]))
-                        url_id = self.db_cur.lastrowid
-                        # tag_attrs(url_id INTEGER, key TEXT, value TEXT)
-                        logic_entries = [(url_id, attr, value) for attr, value in lookup_logic[1].items()]
-                        self.db_cur.executemany("INSERT INTO tag_attrs VALUES (?, ?, ?)", logic_entries)
+                    # Check if this URL already exist in the database
+                    # spy_urls(url TEXT, tag_type TEXT, tag_idx INTEGER)
+                    url_id = self.db_cur.execute("SELECT rowid FROM spy_urls WHERE url=?", (url,)).fetchone()
+                    if not url_id:
+                        lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
+                        if lookup_logic:      
+                            # spy_urls(url TEXT, tag_type TEXT, tag_idx INTEGER)
+                            self.db_cur.execute("INSERT INTO spy_urls VALUES (?, ?, ?)", (url, lookup_logic[0], lookup_logic[2]))
+                            url_id = self.db_cur.lastrowid
+                            # tag_attrs(url_id INTEGER, key TEXT, value TEXT)
+                            logic_entries = [(url_id, attr, value) for attr, value in lookup_logic[1].items()]
+                            self.db_cur.executemany("INSERT INTO tag_attrs VALUES (?, ?, ?)", logic_entries)
+                            # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
+                            self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id))
+                            self.db_con.commit()
+                            success_msg(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
+                        else:
+                            warning_msg('Inputted Current Price Was Not Found On The Webpage Given')
+                            warning_msg(f'Are you sure that the current price of the {item_name} is ${current_price}?')
+                            print('Returning To Patron Menu')
+                    else: 
+                        success_msg('Yay, this item has already been scraped before')
                         # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
-                        self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id))
+                        self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id[0]))
                         self.db_con.commit()
                         success_msg(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
-                    else:
-                        warning_msg('Inputted Current Price Was Not Found On The Webpage Given')
-                        warning_msg(f'Are you sure that the current price of the {item_name} is ${current_price}?')
-                        print('Returning To Patron Menu')
                 else:
                     if 'https://' in url:
                         domain_name = url.split('/')[2]
