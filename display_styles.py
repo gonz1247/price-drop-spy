@@ -1,18 +1,24 @@
 from colorama import init, Fore
+import time
 
 # Basing Colors On What Shows Up Well In VSCODE
 ## Looks good on command prompt too, powershell not so much 
+
+SLEEP_TIME = 1
 
 init(convert=True)
 
 def error_msg(text):
     print(Fore.RED + text + Fore.RESET)
+    time.sleep(SLEEP_TIME)
 
 def success_msg(text):
     print(Fore.GREEN + text + Fore.RESET)
+    time.sleep(SLEEP_TIME)
 
 def warning_msg(text):
     print(Fore.YELLOW + text + Fore.RESET)
+    time.sleep(SLEEP_TIME)
 
 def menu_display(text):
     print(Fore.BLUE + text + Fore.RESET)

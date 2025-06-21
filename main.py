@@ -179,30 +179,33 @@ class MainProgam():
                 self.active_patron.display_items()
             # Display Items For Patron To Select To Update Target Price On
             elif selection == '3':
-                print('Current Items Being Spied On')
-                print('----------------------------------------------------')
-                current_items = self.active_patron.grab_items()
-                self.active_patron.display_items(show_target=True, item_list=current_items)
-                prompt_msg('\nSelect Item That You Want To Update Target Price For')
-                item_selection = self.user_input()
-                if not item_selection: continue # empty input returns to previous menu
-                if item_selection.isnumeric():
-                    item_selection = int(item_selection)
-                    if item_selection > 0 and item_selection <= len(current_items):
-                        item = current_items[item_selection-1]
-                        print(f'Update Target Price For {item.item_name}')
-                        print('----------------------------------------------------')
-                        print(f'Current Target Price is ${item.target_price}')
-                        prompt_msg('Input New Target Price')
-                        new_price = '-'
-                        while not new_price.isnumeric():
-                            new_price = self.user_input().strip('$')
-                        item.update_target_price(new_price)
-                        success_msg('Updated Target Price On Item')
+                current_items = self.active_patron.grab_items()               
+                if current_items:
+                    print('Current Items Being Spied On')
+                    print('----------------------------------------------------')
+                    self.active_patron.display_items(show_target=True, item_list=current_items)
+                    prompt_msg('\nSelect Item That You Want To Update Target Price For')
+                    item_selection = self.user_input()
+                    if not item_selection: continue # empty input returns to previous menu
+                    if item_selection.isnumeric():
+                        item_selection = int(item_selection)
+                        if item_selection > 0 and item_selection <= len(current_items):
+                            item = current_items[item_selection-1]
+                            print(f'Update Target Price For {item.item_name}')
+                            print('----------------------------------------------------')
+                            print(f'Current Target Price is ${item.target_price}')
+                            prompt_msg('Input New Target Price')
+                            new_price = '-'
+                            while not new_price.isnumeric():
+                                new_price = self.user_input().strip('$')
+                            item.update_target_price(new_price)
+                            success_msg('Updated Target Price On Item')
+                        else:
+                            error_msg('Invalid Input, Returning To Patron Menu')
                     else:
                         error_msg('Invalid Input, Returning To Patron Menu')
                 else:
-                    error_msg('Invalid Input, Returning To Patron Menu')
+                    warning_msg('No Items Are Currently Being Spied On')
             # Update User Account Info
             elif selection == '4':
                 print('Current Account Information')
