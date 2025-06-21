@@ -1,7 +1,7 @@
 from patron import Patron
 from spy_item import SpyItem
 from display_styles import error_msg, success_msg, warning_msg, menu_display, prompt_msg
-import os, sqlite3
+import os, sqlite3, time, pynput
 from colorama import Fore
 
 class MainProgam():
@@ -57,7 +57,27 @@ class MainProgam():
 
     def start_spying(self):
         # TODO: Work on spying functionality. Determine if can search items on behalf of multiples patrons at a time
-        pass
+        # Used for setting up esc key to allow controlled stoping of spy session
+        def exit_check(key, injected):
+            if key == pynput.keyboard.Key.esc:
+                global searching
+                searching = False 
+                # Stop listener
+                return False
+        
+        with pynput.keyboard.Listener(on_press=exit_check, on_release=None) as listener:
+            global searching
+            searching = True
+            print('Begginning Spying Session, Press "esc" To End Session After Next Spy Interval')
+            search_intervals = 5 # seconds
+            while searching:
+                print('Searching...')
+                # Wait till next spy interval to check prices
+                time.sleep(search_intervals)
+            listener.join()
+            warning_msg('Stopping Spying Session, Returning To Main Menu')
+
+        
 
     def run_ui(self):
         stop_ui = False
