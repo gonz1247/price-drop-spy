@@ -9,15 +9,18 @@ class MainProgam():
     active_patron = None
 
     def __init__(self, db_name):
-        if os.path.exists(db_name):
+        self.db_name = db_name
+        
+
+    def start_program(self):
+        # Start Connection To Database
+        if os.path.exists(self.db_name):
             # database already exist so just set up connection and cursor
-            self.db_name = db_name
-            self.db_con = sqlite3.connect(db_name)
+            self.db_con = sqlite3.connect(self.db_name)
             self.db_cur = self.db_con.cursor()
         else:
             # database does not exist yet so need to set up tables in addition to connection and cursor
-            self.db_name = db_name
-            self.db_con = sqlite3.connect(db_name)
+            self.db_con = sqlite3.connect(self.db_name)
             self.db_cur = self.db_con.cursor()
             # Set up tables 
             self.db_cur.execute('CREATE TABLE patrons(name TEXT, email TEXT UNIQUE)') # adding unique on email may be overbearing and could be accomplished elsewhere
@@ -26,9 +29,9 @@ class MainProgam():
             # Need a another table to save the dictionary that stores the logic for scraping a website for a price change
             self.db_cur.execute('CREATE TABLE tag_attrs(url_id INTEGER, key TEXT, value TEXT)')
             self.db_con.commit()
-
-    def start_program(self):
+        # Run Program
         self.main_menu()
+        # End Program 
         self.end_program()
 
     def end_program(self):
@@ -46,7 +49,7 @@ class MainProgam():
             menu_display('3) End Program')
             selection = self.user_input()
             if selection.strip() == '1':
-                self.start_spying()
+                self.start_spy_session()
             elif selection.strip() == '2':
                 self.run_ui()
             elif selection.strip() == '3':
@@ -55,7 +58,7 @@ class MainProgam():
             else:
                 error_msg('Invalid selection, please try again\n')
 
-    def start_spying(self):
+    def start_spy_session(self):
         # TODO: Work on spying functionality. Determine if can search items on behalf of multiples patrons at a time
         # Used for setting up esc key to allow controlled stoping of spy session
         def exit_check(key, injected):
@@ -72,12 +75,37 @@ class MainProgam():
             search_intervals = 5 # seconds
             while searching:
                 print('Searching...')
+                # Grab all items that in the database
+                items = self.check_current_prices()
+                # for each item check if price is right now any patrons spying on the item
+                for item in items:
+                    [url_id, url, lookup_logic, current_price] = item
+                    print(f'{url_id}: ${current_price}')
                 # Wait till next spy interval to check prices
                 time.sleep(search_intervals)
             listener.join()
             warning_msg('Stopping Spying Session, Returning To Main Menu')
 
-        
+    def check_current_prices(self):
+        items = list()
+        # Grab URL associated with this item
+        # spy_urls(url TEXT, tag_type TEXT, tag_idx INTEGER)
+        res = self.db_cur.execute("SELECT rowid, url, tag_type, tag_idx FROM spy_urls")
+        for url_id, url, tag_type, tag_idx in res.fetchall():
+            # Recreate a dictionary for use as the lookup logic when webscraping
+            # tag_attrs(url_id INTEGER, key TEXT, value TEXT)
+            res = self.db_cur.execute("SELECT key, value FROM tag_attrs WHERE url_id=?", (url_id,))
+            tag_attrs = {logic[0]:logic[1] for logic in res.fetchall()}
+            lookup_logic = (tag_type, tag_attrs, tag_idx)
+            # create spy_item with dummy arguments so that check the current price
+            spy_item = SpyItem(url, lookup_logic, target_price=0, item_name='dummy', db_id=0, db_name='dummy')
+            try: 
+                current_price = spy_item.check_current_price()
+                items.append((url_id, url, lookup_logic, current_price))
+            except ValueError:
+                # item URL is not longer valid, remove from database and notify patrons
+                pass 
+        return items        
 
     def run_ui(self):
         stop_ui = False
