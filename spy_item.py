@@ -46,6 +46,16 @@ class SpyItem:
     def update_item_name(self, item_name):
         self.item_name = item_name
 
+    def stop_spying(self):
+        # no need to update locally since this instance will just not be able to be recreated anymore
+        # update in database 
+        con = sqlite3.connect(self.db_name)
+        cur = con.cursor()
+        # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
+        cur.execute("DELETE FROM targets WHERE rowid=?", (self.id,))
+        con.commit()
+        con.close()
+
     @staticmethod
     def get_tag_lookup_logic(SCRAPE_URL, current_price):    
         # Verify that URL is valid before attemping to scrape it 

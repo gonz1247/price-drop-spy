@@ -119,14 +119,14 @@ class MainProgam():
                 error_msg('Invalid selection, please try again\n')
         # Display User Interface Menu
         while not stop_ui:
-            # TODO: Add option to remove items from being spied on (maybe will also use this after items hit targets as to not spam patrons)
             menu_display('\nPatron Menu: Select what you\'d like to do')
             menu_display('-----------------------------')
             menu_display('1) Add Item To Spy On')
             menu_display('2) See Current Price Of Items')
             menu_display('3) Update Target Price Of Items')
-            menu_display('4) Update Account Info')
-            menu_display('5) Exit To Program Main Menu')
+            menu_display('4) Remove Item That Is Being Spied On')
+            menu_display('5) Update Account Info')
+            menu_display('6) Exit To Program Main Menu')
             selection = self.user_input()
             # Add Item To Patron Account To Spy On
             if selection == '1':
@@ -206,8 +206,33 @@ class MainProgam():
                         error_msg('Invalid Input, Returning To Patron Menu')
                 else:
                     warning_msg('No Items Are Currently Being Spied On')
-            # Update User Account Info
+            # Remove Item From Being Spied On
             elif selection == '4':
+                current_items = self.active_patron.grab_items()               
+                if current_items:
+                    print('Current Items Being Spied On')
+                    print('----------------------------------------------------')
+                    self.active_patron.display_items(show_target=False, item_list=current_items)
+                    prompt_msg('\nSelect Item That You No Longer Want To Spy On')
+                    item_selection = self.user_input()
+                    if not item_selection: continue # empty input returns to previous menu
+                    if item_selection.isnumeric():
+                        item_selection = int(item_selection)
+                        if item_selection > 0 and item_selection <= len(current_items):
+                            item = current_items[item_selection-1]
+                            prompt_msg(f'Are You Sure That You No Longer Want To Spy On {item.item_name}? (y/n)')
+                            confirmation = self.user_input().lower()
+                            if confirmation.startswith('y'):
+                                item.stop_spying()
+                                success_msg(f'No Longer Spying On {item.item_name}')
+                        else:
+                            error_msg('Invalid Input, Returning To Patron Menu')
+                    else:
+                        error_msg('Invalid Input, Returning To Patron Menu')
+                else:
+                    warning_msg('No Items Are Currently Being Spied On')
+            # Update User Account Info
+            elif selection == '5':
                 print('Current Account Information')
                 print('----------------------------------------------------')
                 print(f'Name: {self.active_patron.name}')
@@ -235,7 +260,7 @@ class MainProgam():
                         error_msg(f'Already a patron account associated with {new_email}')
                 else:
                     error_msg('Invalid Input, Returningh To Patron Menu')
-            elif selection == '5':
+            elif selection == '6':
                 stop_ui = True
         # Exit User Interface
         self.active_patron = None
