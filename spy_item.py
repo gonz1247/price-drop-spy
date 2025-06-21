@@ -38,8 +38,8 @@ class SpyItem:
         # update in database 
         con = sqlite3.connect(self.db_name)
         cur = con.cursor()
-        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL
-        cur.execute("UPDATE items set target_price=? WHERE rowid=?", (self.target_price, self.id))
+        # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
+        cur.execute("UPDATE targets set target_price=? WHERE rowid=?", (self.target_price, self.id))
         con.commit()
         con.close()
 

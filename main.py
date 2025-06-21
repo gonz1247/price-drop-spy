@@ -21,9 +21,10 @@ class MainProgam():
             self.db_cur = self.db_con.cursor()
             # Set up tables 
             self.db_cur.execute('CREATE TABLE patrons(name TEXT, email TEXT UNIQUE)') # adding unique on email may be overbearing and could be accomplished elsewhere
-            self.db_cur.execute('CREATE TABLE items(patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL)')
-            # Need a third table to save the dictionary that stores the logic for scraping a website for a price change
-            self.db_cur.execute('CREATE TABLE logic(item_id INTEGER, key TEXT, value TEXT)')
+            self.db_cur.execute('CREATE TABLE targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)')
+            self.db_cur.execute('CREATE TABLE spy_urls(url TEXT, tag_type TEXT, tag_idx INTEGER)')
+            # Need a another table to save the dictionary that stores the logic for scraping a website for a price change
+            self.db_cur.execute('CREATE TABLE tag_attrs(url_id INTEGER, key TEXT, value TEXT)')
             self.db_con.commit()
 
     def start_program(self):
@@ -139,12 +140,15 @@ class MainProgam():
                     prompt_msg('Enter Maximum Price That You Want To Pay')
                     target_price = self.user_input().strip('$')
                     lookup_logic = SpyItem.get_tag_lookup_logic(url, current_price) 
-                    if lookup_logic:
-                        # patron_id INTEGER, name TEXT, url TEXT, tag_type TEXT, tag_idx INTEGER, target_price REAL
-                        self.db_cur.execute("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?)", (self.active_patron.id, item_name, url, lookup_logic[0], lookup_logic[2], float(target_price)))
-                        # item_id INTEGER, key TEXT, value TEXT
-                        logic_entries = [(self.db_cur.lastrowid, attr, value) for attr, value in lookup_logic[1].items()]
-                        self.db_cur.executemany("INSERT INTO logic VALUES (?, ?, ?)", logic_entries)
+                    if lookup_logic:      
+                        # spy_urls(url TEXT, tag_type TEXT, tag_idx INTEGER)
+                        self.db_cur.execute("INSERT INTO spy_urls VALUES (?, ?, ?)", (url, lookup_logic[0], lookup_logic[2]))
+                        url_id = self.db_cur.lastrowid
+                        # tag_attrs(url_id INTEGER, key TEXT, value TEXT)
+                        logic_entries = [(url_id, attr, value) for attr, value in lookup_logic[1].items()]
+                        self.db_cur.executemany("INSERT INTO tag_attrs VALUES (?, ?, ?)", logic_entries)
+                        # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
+                        self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id))
                         self.db_con.commit()
                         success_msg(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
                     else:
