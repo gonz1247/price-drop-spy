@@ -25,13 +25,7 @@ class SpyItem:
                 price.append(char)
         current_price = ''.join(price).strip('.')
         return float(current_price)
-    
-    def check_price_is_right(self):
-        if self.check_current_price() <= self.target_price:
-            return True
-        else:
-            return False
-        
+           
     def update_target_price(self, target_price):
         # Update in local instance
         self.target_price = float(target_price)
@@ -43,9 +37,6 @@ class SpyItem:
         con.commit()
         con.close()
 
-    def update_item_name(self, item_name):
-        self.item_name = item_name
-
     def stop_spying(self):
         # no need to update locally since this instance will just not be able to be recreated anymore
         # update in database 
@@ -55,6 +46,7 @@ class SpyItem:
         cur.execute("DELETE FROM targets WHERE rowid=?", (self.id,))
         con.commit()
         con.close()
+        # note that removal of URL if no other patrons are spying on this item now is handled at the main program level
 
     @staticmethod
     def get_tag_lookup_logic(SCRAPE_URL, current_price):    
