@@ -80,7 +80,11 @@ class MainProgam():
                 # for each item check if price is right now any patrons spying on the item
                 for item in items:
                     [url_id, url, lookup_logic, current_price] = item
-                    print(f'{url_id}: ${current_price}')
+                    patrons_items = self.find_price_is_right_items(url_id, current_price) # (patron_id, name, target_price)
+                    if patrons_items:
+                        print(f'Item under or equal ${current_price}')
+                        for patron_id, name, target_price in patrons_items:
+                            print(f'{name}: ${target_price}')
                 # Wait till next spy interval to check prices
                 time.sleep(search_intervals)
             listener.join()
@@ -106,6 +110,29 @@ class MainProgam():
                 # item URL is not longer valid, remove from database and notify patrons
                 pass 
         return items        
+
+    def find_price_is_right_items(self, url_id, current_price):
+        # find which patron's have a target price lower or equal to the current price for this item (url)
+        # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
+        patron_items = self.db_cur.execute("SELECT patron_id, name, target_price FROM targets WHERE url_id=? ORDER BY target_price ASC",(url_id,)).fetchall()
+        low = 0 
+        high = len(patron_items) - 1
+        right_price_idx = None
+        # binary search to find the patron's who have a target price lower than the current price
+        while low <= high:
+            middle = (high + low) // 2
+            if patron_items[middle][2] >= current_price:
+                right_price_idx = middle
+                high = middle - 1
+                # continue searching to the left to see if there are more patron's who have their target met
+            else:
+                # search right to patron's who have their target met
+                low = middle + 1
+        # return list of items for patrons who's target price has been met
+        if right_price_idx != None: 
+            return patron_items[right_price_idx:]
+        else:
+            return None
 
     def run_ui(self):
         stop_ui = False
