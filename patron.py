@@ -1,7 +1,4 @@
 from spy_item import SpyItem
-from smtplib import SMTP
-from dotenv import dotenv_values
-from email.message import EmailMessage
 import sqlite3
 
 
@@ -69,22 +66,6 @@ class Patron:
                 display_text += f', target price is ${spy_item.target_price:.2f}'
             print(display_text)
     
-    def notify_of_price_drop(self, spy_item):
-        with SMTP('smtp.gmail.com', 587) as s:
-            # Set up SMTP instance
-            s.starttls()
-            s.login(dotenv_values('.env')['admin_email'], dotenv_values('.env')['admin_email_pw'])
-            # Generate notification email
-            email = EmailMessage()
-            email['Subject'] = f'Hey {self.name}! Your Spied On Item Has Hit The Price You Were Interested In!'
-            email['From'] = 'Price Drop Spy <noreply@pricedrop.spy>' # gmail doesn't allow for alternative email to be displayed so noreply@pricedrop.spy will be overwritten
-            email['To'] = self.email
-            message = f'{spy_item.item_name} is currently available for ${spy_item.check_current_price():.2f}\n\n'
-            message += f'Purchase your item at: {spy_item.url}'
-            email.set_content(message)
-            # Send email notification
-            s.send_message(email)
-
 if __name__ == '__main__':
     # Set Up Item 
     SCRAPE_URL = 'https://shop.lululemon.com/p/men-ss-tops/Organic-Cotton-Classic-Fit-T-Shirt/_/prod11680617?color=0002'
@@ -92,7 +73,4 @@ if __name__ == '__main__':
     if SpyItem.valid_url(SCRAPE_URL):
         lookup_logic = SpyItem.get_tag_lookup_logic(SCRAPE_URL,current_price)
         item = SpyItem(SCRAPE_URL, lookup_logic, 40, 'Lulu Shirt', db_id=-1, db_name='dummy')
-        p = Patron('Gonzo', dotenv_values('.env')['admin_email'], db_id=-1, db_name='dummy')
-        #p.notify_of_price_drop(item)
-        
-    
+        print(item.check_current_price())

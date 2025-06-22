@@ -3,6 +3,9 @@ from spy_item import SpyItem
 from display_styles import error_msg, success_msg, warning_msg, menu_display, prompt_msg
 import os, sqlite3, time, pynput
 from colorama import Fore
+from smtplib import SMTP
+from dotenv import dotenv_values
+from email.message import EmailMessage
 
 class MainProgam():
 
@@ -77,14 +80,15 @@ class MainProgam():
                 print('Searching...')
                 # Grab all items that in the database
                 items = self.check_current_prices()
-                # for each item check if price is right now any patrons spying on the item
+                # for each item check if price is right for any patrons spying on the item
                 for item in items:
-                    [url_id, url, lookup_logic, current_price] = item
+                    [url_id, url, current_price] = item
+                    # get list of patron's that are happy to pay the current price
                     patrons_items = self.find_price_is_right_items(url_id, current_price) # (patron_id, name, target_price)
                     if patrons_items:
                         print(f'Item under or equal ${current_price}')
-                        for patron_id, name, target_price in patrons_items:
-                            print(f'{name}: ${target_price}')
+                        for patron_id, item_name, _ in patrons_items:
+                            self.notify_patron_of_price_drop(patron_id, url, item_name, current_price)
                 # Wait till next spy interval to check prices
                 time.sleep(search_intervals)
             listener.join()
@@ -105,7 +109,7 @@ class MainProgam():
             spy_item = SpyItem(url, lookup_logic, target_price=0, item_name='dummy', db_id=0, db_name='dummy')
             try: 
                 current_price = spy_item.check_current_price()
-                items.append((url_id, url, lookup_logic, current_price))
+                items.append((url_id, url, current_price))
             except ValueError:
                 # item URL is not longer valid, remove from database and notify patrons
                 pass 
@@ -133,6 +137,23 @@ class MainProgam():
             return patron_items[right_price_idx:]
         else:
             return None
+        
+    def notify_patron_of_price_drop(self,patron_id, url, item_name, current_price):
+        [patron_name, patron_email] = self.db_cur.execute('SELECT name, email FROM patrons WHERE rowid=?',(patron_id,)).fetchone()
+        with SMTP('smtp.gmail.com', 587) as s:
+            # Set up SMTP instance
+            s.starttls()
+            s.login(dotenv_values('.env')['admin_email'], dotenv_values('.env')['admin_email_pw'])
+            # Generate notification email
+            email = EmailMessage()
+            email['Subject'] = f'Hey {patron_name}! Your Spied On Item Has Hit The Price You Were Interested In!'
+            email['From'] = 'Price Drop Spy <noreply@pricedrop.spy>' # gmail doesn't allow for alternative email to be displayed so noreply@pricedrop.spy will be overwritten
+            email['To'] = patron_email
+            message = f'{item_name} is currently available for ${current_price:.2f}\n\n'
+            message += f'Purchase your item at: {url}'
+            email.set_content(message)
+            # Send email notification
+            s.send_message(email)
 
     def run_ui(self):
         stop_ui = False
