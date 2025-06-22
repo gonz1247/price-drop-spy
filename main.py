@@ -1,7 +1,7 @@
 from patron import Patron
 from spy_item import SpyItem
 from display_styles import error_msg, success_msg, warning_msg, menu_display, prompt_msg
-import os, sqlite3, time, pynput
+import os, sqlite3, time, pynput, datetime
 from colorama import Fore
 from smtplib import SMTP
 from dotenv import dotenv_values
@@ -62,7 +62,6 @@ class MainProgam():
                 error_msg('Invalid selection, please try again\n')
 
     def start_spy_session(self):
-        # TODO: Work on spying functionality. Determine if can search items on behalf of multiples patrons at a time
         # Used for setting up esc key to allow controlled stoping of spy session
         def exit_check(key, injected):
             if key == pynput.keyboard.Key.esc:
@@ -70,26 +69,41 @@ class MainProgam():
                 searching = False 
                 # Stop listener
                 return False
-        
+        # Run spy session
         with pynput.keyboard.Listener(on_press=exit_check, on_release=None) as listener:
             global searching
             searching = True
             print('Begginning Spying Session, Press "esc" To End Session After Next Spy Interval')
             search_intervals = 5 # seconds
             while searching:
-                print('Searching...')
-                # Grab all items that in the database
+                # Grab all items that are in the database
                 items = self.check_current_prices()
                 # for each item check if price is right for any patrons spying on the item
                 for item in items:
                     [url_id, url, current_price] = item
                     # get list of patron's that are happy to pay the current price
-                    patrons_items = self.find_price_is_right_items(url_id, current_price) # (patron_id, name, target_price)
+                    patrons_items = self.find_price_is_right_items(url_id, current_price) # (rowid, patron_id, name, target_price)
                     if patrons_items:
-                        print(f'Item under or equal ${current_price}')
-                        for patron_id, item_name, _ in patrons_items:
+                        # Notify each patron that their item is available for the price they want via email 
+                        for item_id, patron_id, item_name, _ in patrons_items:
                             self.notify_patron_of_price_drop(patron_id, url, item_name, current_price)
+                            print('Sent Email')
+                            # Intialize dummy spy item to stop spying on this item for the patron 
+                            spy_item = SpyItem(SCRAPE_URL=None, lookup_logic=None, target_price=0, item_name=None, db_id=item_id, db_name=self.db_name)
+                            spy_item.stop_spying()
+                    # check to see if item still needs to tracked, remove from database if not (remove URL and tag atrributes entirely, not just from a particular patron)
+                    res = self.db_cur.execute('SELECT * FROM targets WHERE url_id=?',(url_id,))
+                    if not res.fetchone():
+                        # no patron is tracking this item anymore, remove it from the database
+                        # delete tag attributes 
+                        self.db_cur.execute("DELETE FROM tag_attrs WHERE url_id=?", (url_id,))
+                        # delete url 
+                        self.db_cur.execute("DELETE FROM spy_urls WHERE rowid=?", (url_id,))
+                        self.db_con.commit()
                 # Wait till next spy interval to check prices
+                print(f'Finished search interval at {datetime.datetime.now()}')
+                print(f'Next search interval will start in {search_intervals/60:.1f} minutes')
+                print('Press "esc" To End Session Before Next Spy Interval\n')
                 time.sleep(search_intervals)
             listener.join()
             warning_msg('Stopping Spying Session, Returning To Main Menu')
@@ -118,14 +132,14 @@ class MainProgam():
     def find_price_is_right_items(self, url_id, current_price):
         # find which patron's have a target price lower or equal to the current price for this item (url)
         # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
-        patron_items = self.db_cur.execute("SELECT patron_id, name, target_price FROM targets WHERE url_id=? ORDER BY target_price ASC",(url_id,)).fetchall()
+        patron_items = self.db_cur.execute("SELECT rowid, patron_id, name, target_price FROM targets WHERE url_id=? ORDER BY target_price ASC",(url_id,)).fetchall()
         low = 0 
         high = len(patron_items) - 1
         right_price_idx = None
         # binary search to find the patron's who have a target price lower than the current price
         while low <= high:
             middle = (high + low) // 2
-            if patron_items[middle][2] >= current_price:
+            if patron_items[middle][3] >= current_price:
                 right_price_idx = middle
                 high = middle - 1
                 # continue searching to the left to see if there are more patron's who have their target met
@@ -150,7 +164,8 @@ class MainProgam():
             email['From'] = 'Price Drop Spy <noreply@pricedrop.spy>' # gmail doesn't allow for alternative email to be displayed so noreply@pricedrop.spy will be overwritten
             email['To'] = patron_email
             message = f'{item_name} is currently available for ${current_price:.2f}\n\n'
-            message += f'Purchase your item at: {url}'
+            message += f'Purchase your item at: {url}\n\n'
+            message += 'This item will no longer be spied on'
             email.set_content(message)
             # Send email notification
             s.send_message(email)
@@ -257,6 +272,7 @@ class MainProgam():
                             warning_msg(f'Are you sure that the current price of the {item_name} is ${current_price}?')
                             print('Returning To Patron Menu')
                     else: 
+                        # TODO: Check that this patron is not already tracking this item 
                         success_msg('Yay, this item has already been scraped before')
                         # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
                         self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id[0]))
@@ -370,9 +386,20 @@ class MainProgam():
             selection = input((Fore.CYAN + '> ' + Fore.RESET)).strip()
         return selection   
 
-def main():
-    price_drop_spy = MainProgam('db.sqlite3')
+def main(debug=False):
+    db_name = 'db.sqlite3'
+    price_drop_spy = MainProgam(db_name)
     price_drop_spy.start_program()
+    if debug:
+        con = sqlite3.connect(db_name)
+        cur = con.cursor()
+        table_names = ['patrons','targets', 'spy_urls', 'tag_attrs']
+        for name in table_names:
+            print(f'Table: {name}')
+            res = cur.execute(f'SELECT * FROM {name}') # not supposed to this but here we are since it's just for debugging
+            for item in res.fetchall():
+                print(item) 
+        con.close()       
 
 if __name__=='__main__':
     main()
