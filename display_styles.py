@@ -21,7 +21,7 @@ def warning_msg(text):
     time.sleep(SLEEP_TIME)
 
 def menu_display(text):
-    print(Fore.BLUE + text + Fore.RESET)
+    print(Fore.CYAN + text + Fore.RESET)
 
 def prompt_msg(text):
     print(Fore.CYAN + text + Fore.RESET)

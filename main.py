@@ -408,7 +408,9 @@ def main(debug=False):
             res = cur.execute(f'SELECT * FROM {name}') # not supposed to this but here we are since it's just for debugging
             for item in res.fetchall():
                 print(item) 
+            print()
         con.close()       
 
 if __name__=='__main__':
-    main(debug=True)
+    debug_flag = False
+    main(debug=debug_flag)
