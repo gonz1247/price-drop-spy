@@ -272,12 +272,14 @@ class MainProgam():
                             warning_msg(f'Are you sure that the current price of the {item_name} is ${current_price}?')
                             print('Returning To Patron Menu')
                     else: 
-                        # TODO: Check that this patron is not already tracking this item 
-                        success_msg('Yay, this item has already been scraped before')
                         # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
-                        self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id[0]))
-                        self.db_con.commit()
-                        success_msg(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
+                        if self.db_cur.execute("SELECT * FROM targets WHERE url_id=?", url_id).fetchone():
+                            warning_msg('You Are Already Spying On This Item, Use Option 3 On Patron Menu To Update Target Price')
+                        else:
+                            # targets(patron_id INTEGER, name TEXT, target_price REAL, url_id INTEGER)
+                            self.db_cur.execute("INSERT INTO targets VALUES (?, ?, ?, ?)", (self.active_patron.id, item_name, float(target_price), url_id[0]))
+                            self.db_con.commit()
+                            success_msg(f'{item_name} Has Successfully Been Added To Your Account For Price Spying')
                 else:
                     if 'https://' in url:
                         domain_name = url.split('/')[2]
