@@ -73,8 +73,10 @@ class MainProgam():
         with pynput.keyboard.Listener(on_press=exit_check, on_release=None) as listener:
             global searching
             searching = True
-            print('Begginning Spying Session, Press "esc" To End Session After Next Spy Interval')
-            search_intervals = 5 # seconds
+            print('Begginning Spying Session')
+            search_intervals = 60*60*12 # seconds
+            end_search_delay = 10 # seconds
+            end_search_delay = min(end_search_delay,search_intervals)
             while searching:
                 # Grab all items that are in the database
                 items = self.check_current_prices()
@@ -102,9 +104,14 @@ class MainProgam():
                         self.db_con.commit()
                 # Wait till next spy interval to check prices
                 print(f'Finished search interval at {datetime.datetime.now()}')
-                print(f'Next search interval will start in {search_intervals/60:.1f} minutes')
-                print('Press "esc" To End Session Before Next Spy Interval\n')
-                time.sleep(search_intervals)
+                print(f'Next search interval will start at {datetime.datetime.fromtimestamp(time.time()+search_intervals)}')
+                print(f'Press "esc" To End Session (up to a {end_search_delay} second delay)\n')
+                # break up sleep time into shorter chunks so can have a reasonable delay on the end search input
+                finished_interval = time.time()
+                while (time.time() - finished_interval) < search_intervals:
+                    if not searching:
+                        break 
+                    time.sleep(end_search_delay)
             listener.join()
             warning_msg('Stopping Spying Session, Returning To Main Menu')
 
